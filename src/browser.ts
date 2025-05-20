@@ -12,14 +12,16 @@ async function initBrowser() {
     page = await browser.newPage();
 }
 
-export async function makeRequest(url: string): Promise<unknown> {
+export async function makeRequest(url: string, wait?:number): Promise<unknown> {
     if (!page) {
         await initBrowser();
     }
 
     await page.goto(url);
     await page.waitForSelector('body');
-    await sleep(200);
+    if (wait) {
+        await sleep(wait);
+    }
     return await page.content();
 }
 
