@@ -15,6 +15,10 @@ async function initBrowser() {
 }
 
 export async function makeRequest(url: string, wait?:number): Promise<unknown> {
+    if (requestMutex.isLocked()) {
+        throw new Error("A request is already in progress");
+    }
+
     await requestMutex.acquire();
 
     try {
