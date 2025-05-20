@@ -20,11 +20,16 @@ fastify.get('/', async (request, reply) => {
         return
     }
 
-    const wait = request.query.wait !== undefined ? Number(request.query.wait) : 200;
+    const wait = request.query.wait !== undefined ? Math.min(Number(request.query.wait), 10_000) : 200;
     const keepNavigation = request.query.keepNavigation;
     const keepSpace = request.query.keepSpace;
 
     const result = await makeRequest(url, wait);
+
+    if (request.query.raw) {
+        reply.send(result);
+    }
+
     const $ = cheerio.load(result);
 
     $('script').remove();
