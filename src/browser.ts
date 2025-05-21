@@ -9,7 +9,7 @@ const requestMutex = new Mutex();
 async function initBrowser() {
     puppeteer.use(StealthPlugin());
 
-    const browser = await puppeteer.launch({});
+    const browser = await puppeteer.launch({pipe: true});
 
     page = await browser.newPage();
 }
