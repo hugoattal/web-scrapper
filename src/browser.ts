@@ -3,17 +3,11 @@ import {Browser, Page} from "puppeteer";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import {Mutex} from "async-mutex";
 
-let page: Page;
 let browser: Browser;
 const requestMutex = new Mutex();
 let queue = 0;
 
-async function initBrowser() {
-    puppeteer.use(StealthPlugin());
-
-    browser = await puppeteer.launch({pipe: true});
-    page = await browser.newPage();
-}
+puppeteer.use(StealthPlugin());
 
 export async function makeRequest(url: string, wait?: number): Promise<string> {
     if (queue > 5) {
@@ -23,9 +17,11 @@ export async function makeRequest(url: string, wait?: number): Promise<string> {
     queue++;
     await requestMutex.acquire();
 
-    if (!page) {
-        await initBrowser();
+    if (!browser) {
+        browser = await puppeteer.launch({pipe: true});
     }
+
+    let page: Page = await browser.newPage();
 
     try {
         return retryCount(3, async () => {
@@ -37,10 +33,12 @@ export async function makeRequest(url: string, wait?: number): Promise<string> {
             return await page.content();
         }, async () => {
             await browser?.close();
-            await initBrowser();
+            browser = await puppeteer.launch({pipe: true});
+            page = await browser.newPage();
         });
 
     } finally {
+        await page.close();
         queue--;
         requestMutex.release();
     }
