@@ -23,8 +23,21 @@ fastify.get('/', async (request, reply) => {
     const wait = request.query.wait !== undefined ? Math.min(Number(request.query.wait), 10_000) : 200;
     const keepNavigation = request.query.keepNavigation;
     const keepSpace = request.query.keepSpace;
+    const noFail = request.query.noFail;
 
-    const result = await makeRequest(url, wait);
+    let result = "";
+
+    try {
+        result = await makeRequest(url, wait);
+    }
+    catch (error) {
+        if (noFail) {
+            reply.send("");
+        }
+        else {
+            throw error;
+        }
+    }
 
     if (request.query.raw) {
         reply.send(result);

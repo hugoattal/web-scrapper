@@ -1,43 +1,64 @@
 import puppeteer from "puppeteer-extra";
-import {Page} from "puppeteer";
+import {Browser, Page} from "puppeteer";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import {Mutex} from "async-mutex";
 
 let page: Page;
+let browser: Browser;
 const requestMutex = new Mutex();
+let queue = 0;
 
 async function initBrowser() {
     puppeteer.use(StealthPlugin());
 
-    const browser = await puppeteer.launch({pipe: true});
-
+    browser = await puppeteer.launch({pipe: true});
     page = await browser.newPage();
 }
 
-export async function makeRequest(url: string, wait?:number): Promise<unknown> {
-    if (requestMutex.isLocked()) {
-        throw new Error("A request is already in progress");
+export async function makeRequest(url: string, wait?: number): Promise<string> {
+    if (queue > 5) {
+        throw new Error('Too many requests');
     }
 
+    queue++;
     await requestMutex.acquire();
 
-    try {
-        if (!page) {
-            await initBrowser();
-        }
-
-        await page.goto(url);
-        await page.waitForSelector('body');
-        if (wait) {
-            await sleep(wait);
-        }
-        return await page.content();
+    if (!page) {
+        await initBrowser();
     }
-    finally {
+
+    try {
+        return retryCount(3, async () => {
+            await page.goto(url);
+            await page.waitForSelector('body');
+            if (wait) {
+                await sleep(wait);
+            }
+            return await page.content();
+        }, async () => {
+            await browser?.close();
+            await initBrowser();
+        });
+
+    } finally {
+        queue--;
         requestMutex.release();
     }
 }
 
 async function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function retryCount(count: number, callback: () => Promise<string>, onFail: () => Promise<void>) {
+    try {
+        return await callback();
+    } catch (error) {
+        if (count > 0) {
+            await onFail();
+            return await retryCount(count - 1, callback, onFail);
+        } else {
+            throw error;
+        }
+    }
 }
