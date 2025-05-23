@@ -10,7 +10,7 @@ let queue = 0;
 puppeteer.use(StealthPlugin());
 
 export async function makeRequest(url: string, wait?: number): Promise<string> {
-    if (queue > 5) {
+    if (queue > 2) {
         throw new Error('Too many requests');
     }
 
@@ -24,7 +24,7 @@ export async function makeRequest(url: string, wait?: number): Promise<string> {
     let page: Page = await browser.newPage();
 
     try {
-        return retryCount(3, async () => {
+        return retryCount(1, async () => {
             await page.goto(url);
             await page.waitForSelector('body');
             if (wait) {
